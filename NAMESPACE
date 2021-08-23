@@ -1,0 +1,4 @@
+useDynLib(FasterCliquePercolation, .registration=TRUE)
+exportPattern("^[[:alpha:]]+")
+importFrom(Rcpp, evalCpp)
+importFrom(magrittr,"%>%")
