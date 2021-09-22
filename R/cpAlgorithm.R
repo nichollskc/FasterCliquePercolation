@@ -156,10 +156,11 @@ cpAlgorithmRaw <- function(W, k, method = c("unweighted","weighted","weighted.CF
       ## system.time(create_edges_matrix_intersect(cliques))
       ## system.time(create_edges_matrix_setdiff(cliques))
 
-      edges=create_edges_matrix_custom(cliques)
+      W_comm = create_edges_matrix_custom(cliques)
     } else {
-      ## edges <- list()
-      edges <- matrix(0,2,0)
+      ## Either only one clique or no cliques
+      ## Make an empty 1x1 adjacency matrix
+      W_comm <- matrix(0,1,1)
     }
 
                                         #CFinder applies the Intensity threshold twice, once for the cliques and once for the overlap of cliques
@@ -186,14 +187,7 @@ cpAlgorithmRaw <- function(W, k, method = c("unweighted","weighted","weighted.CF
     #then, components (connected subgraphs) of this graph are extracted from igraph object
     #components are therefore the communities
     #each clique is then put into its respective community and the nodes of each community are extracted
-    if (length(cliques) > 1 & length(edges) > 0) {
-      W_comm <- matrix(c(0), nrow = length(cliques), ncol = length(cliques))
-      ## edges_i=sapply(edges,"[",1)
-      ## edges_j=sapply(edges,"[",2)
-      W_comm[ t(edges) ]=1
-      ## for (i in 1:length(edges)) {
-      ##   W_comm[edges[[i]][1],edges[[i]][2]] <- 1
-      ## }
+    if (length(cliques) > 1 & sum(W_comm) > 0) {
       W_i_comm <- igraph::graph_from_adjacency_matrix(W_comm, mode = "upper")
       members <- igraph::components(W_i_comm)$membership
       split <- split(cliques, members)
@@ -201,7 +195,7 @@ cpAlgorithmRaw <- function(W, k, method = c("unweighted","weighted","weighted.CF
     }
     #if there is at least one clique but no edge...
     #communities are the existing cliques
-    if (length(cliques) > 0 & ncol(edges) == 0) {
+    if (length(cliques) > 0 & sum(W_comm) == 0) {
       communities <- cliques
     }
     #if there are no cliques (and therefore also no edges)...

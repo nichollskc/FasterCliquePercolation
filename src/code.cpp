@@ -19,35 +19,27 @@ int count_matches(IntegerVector x,IntegerVector y) {
 
 // [[Rcpp::export]]
 IntegerMatrix create_edges_matrix_custom(List cliques) {
-  int n=cliques.size();
-  int nr=n*(n-1)/2;
-  // if(n > 10000)
-  //   nr= (int) sqrt( (double)nr ); // risky, but may save memory headaches
-  IntegerMatrix edges(2,nr);
+  int num_cliques=cliques.size();
+  IntegerMatrix clique_adjacency(num_cliques, num_cliques);
   IntegerVector clique=cliques[0];
   int k=clique.size();
-  Rcout << "n " << n << " nr " << nr << " k " << k << '\n';
-  int m=0;
-  for(int i=0; i<n; i++) {
+  Rcout << "n " << num_cliques << " k " << k << '\n';
+  int num_edges=0;
+  for(int i=0; i<num_cliques; i++) {
     IntegerVector clique_i=cliques[i];
-    for(int j=(i+1); j<n; j++) {
+    for(int j=(i+1); j<num_cliques; j++) {
       IntegerVector clique_j=cliques[j];
       int matches=count_matches(clique_i, clique_j);
       if(matches == (k-1)) {
-        // Rcout << m << ' ' << i << ' ' << j << '\n';
-        edges(0,m)=i+1;
-        edges(1,m)=j+1;
-        m++;
+        // Cliques i and j are "adjacent" so add this clique edge to the matrix
+        clique_adjacency(i, j) = 1;
+        clique_adjacency(j, i) = 1;
+        num_edges++;
       }
     }
   }
-  Rcout << " edges found " << m << '\n';
-  IntegerMatrix trimmed(2,0);
-  if(m!=0)
-  //   trimmed = edges( 0, Range(0,1) );
-  // else
-    trimmed = edges( Range(0,1), Range(0,(m-1)) );
-  return( trimmed );
+  Rcout << " edges found " << num_edges << '\n';
+  return( clique_adjacency );
 }
 
 // [[Rcpp::export]]
