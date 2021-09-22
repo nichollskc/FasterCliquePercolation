@@ -100,6 +100,10 @@
 #' @export cpAlgorithm
 
 cpAlgorithm <- function(W, k, method = c("unweighted","weighted","weighted.CFinder"), I){
+  return(cpAlgorithmRaw(W, k, method, I, all_k_cliques = NULL))
+}
+
+cpAlgorithmRaw <- function(W, k, method = c("unweighted","weighted","weighted.CFinder"), I, all_k_cliques = NULL) {
   
   ###error message if W is not a qgraph object
   if (methods::is(W, "qgraph") == FALSE) {
@@ -128,52 +132,6 @@ cpAlgorithm <- function(W, k, method = c("unweighted","weighted","weighted.CFind
   ##   return(cliques_unweighted)
   ## }
   
-  
-  ###function to determine list of cliques for weighted networks
-  weighted <- function(W_weighted){
-    
-    #take absolute Value of weights matrix
-    #deals with negative edges such that they are simply considered like positive edges
-    W_weighted <- abs(W_weighted)
-    
-    #transform to igraph object to use specific functions
-    W_i_weighted <- igraph::graph_from_adjacency_matrix(W_weighted,
-                                                        mode = "undirected", weighted = TRUE)
-    
-    #extract cliques
-    cliques_weighted <- igraph::cliques(W_i_weighted, min = k, max = k) %>% lapply(as.vector)
-    
-    #if there are cliques...(if there are no cliques, nothing needs to be done because cliques_weighted is empty)
-    #check whether cliques exceed Intensity
-    #first step is to create a list of intensity with each vector being the intensity of corresponding clique
-    #this is achieved by extracting the weights for every pair of nodes in each clique from weights matrix
-    #the vector with the weights is then used to calculate the intensity of the respective clique
-    #second step is to create a list that has TRUE at corresponding position if clique intensity exceeds set Intensity
-    #finally, select only cliques that should be included
-    ## intensity_weighted <- list()
-    intensity_weighted <- vector("list",length(cliques_weighted))
-    if (length(cliques_weighted) > 0) {
-      for (i in 1:length(cliques_weighted)) {
-        ## weights <- c()
-        weights <- numeric( (length(cliques_weighted[[i]])-1) * (length(cliques_weighted[[i]])) / 2 )
-        m <- 1
-        for (j in 1:(length(cliques_weighted[[i]]) - 1)) {
-          for (k in (j+1):length(cliques_weighted[[i]])) {
-            weights[m] <- W_weighted[cliques_weighted[[i]][j],cliques_weighted[[i]][k]]
-            m <- m + 1
-          }
-        }
-        exponent <- 2/(length(cliques_weighted[[i]]) * (length(cliques_weighted[[i]]) - 1))
-        intensity_weighted[[i]] <- prod(weights)^exponent
-      }
-      cliques_include_weighted <- lapply(intensity_weighted, function(x) as.numeric(as.character(x)) > I)
-      cliques_weighted <- cliques_weighted[which(cliques_include_weighted == TRUE)]
-    }
-    
-    #return cliques
-    return(cliques_weighted)
-    
-  }
   
   #function to derive communities, shared nodes, and isolated nodes
   results_cp <- function(W, cliques, labels){
@@ -331,12 +289,66 @@ cpAlgorithm <- function(W, k, method = c("unweighted","weighted","weighted.CFind
     if (I <= 0) {
       stop("Intensity (I) must be larger than zero.\nThis is because all edges are considered positive.\nComparing intensities of cliques or their overlap to zero or negative value therefore makes no sense.")
     }
-    cliques <- weighted(Wmat)
-    results_weighted <- results_cp(Wmat, cliques, labels)
+
+    # First find all cliques (if not provided as an argument), with their associated intensities
+    if (is.null(all_k_cliques)) {
+        all_k_cliques <- calculate_all_clique_intensities(Wmat, k)
+    }
+
+    # Restrict to cliques above this threshold
+    cliques_above_thresh <- threshold_cliques(all_k_cliques, I)$cliques
+
+    # Run algorithm (i.e. find communities)
+    results_weighted <- results_cp(Wmat, cliques_above_thresh, labels)
     names(results_weighted) <- c("list.of.communities.numbers","list.of.communities.labels",
                                  "shared.nodes.numbers","shared.nodes.labels",
                                  "isolated.nodes.numbers","isolated.nodes.labels")
     return(c(results_weighted,list(k = k, method = method, I = I)))
   }
   
+}
+
+threshold_cliques <- function(cliques_result, I) {
+  include_clique <- lapply(cliques_result$intensity_weighted, function(x) as.numeric(as.character(x)) > I)
+  cliques_weighted_thr <- cliques_result$cliques[which(include_clique == TRUE)]
+  intensity_weighted_thr <- cliques_result$intensity_weighted[which(include_clique == TRUE)]
+  return(list("intensity_weighted" = intensity_weighted_thr,
+              "cliques" = cliques_weighted_thr))
+}
+
+##function to find all cliques and calculate their intensities
+calculate_all_clique_intensities <- function(W_weighted, k) {
+  print("Finding all cliques")
+
+  #take absolute Value of weights matrix
+  #deals with negative edges such that they are simply considered like positive edges
+  W_weighted <- abs(W_weighted)
+
+  #transform to igraph object to use specific functions
+  W_i_weighted <- igraph::graph_from_adjacency_matrix(W_weighted,
+                                                      mode = "undirected", weighted = TRUE)
+
+  #extract cliques
+  cliques_weighted <- igraph::cliques(W_i_weighted, min = k, max = k) %>% lapply(as.vector)
+
+  intensity_weighted <- vector("list",length(cliques_weighted))
+  if (length(cliques_weighted) > 0) {
+    for (i in 1:length(cliques_weighted)) {
+      ## weights <- c()
+      weights <- numeric( (length(cliques_weighted[[i]])-1) * (length(cliques_weighted[[i]])) / 2 )
+      m <- 1
+      for (j in 1:(length(cliques_weighted[[i]]) - 1)) {
+        for (k in (j+1):length(cliques_weighted[[i]])) {
+          weights[m] <- W_weighted[cliques_weighted[[i]][j],cliques_weighted[[i]][k]]
+          m <- m + 1
+        }
+      }
+      exponent <- 2/(length(cliques_weighted[[i]]) * (length(cliques_weighted[[i]]) - 1))
+      intensity_weighted[[i]] <- prod(weights)^exponent
+    }
+  }
+
+  return(list("intensity_weighted" = intensity_weighted,
+              "cliques" = cliques_weighted))
+
 }

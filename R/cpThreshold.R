@@ -164,12 +164,27 @@ cpThreshold <- function(W, method = c("unweighted","weighted","weighted.CFinder"
     community <- c()
     isolated <- c()
     count <- 1
+
+    Wmat <- qgraph::getWmat(W)
+
+    min_I <- min(I.range)
+    min_k <- min(k.range)
+    weight_threshold = min_I ** (min_k * (min_k - 1) / 2)
+    Wmat[Wmat < weight_threshold] = 0
+
     progress_bar <- utils::txtProgressBar(min = 0, max = length(k.range)*length(I.range),
                                           style = 3) #progress bar definition
     progress_bar_counter <- 0 #counter for progress bar
+
     for (k in k.range) {
+      all_k_cliques <- calculate_all_clique_intensities(Wmat, k)
+      print(paste(length(all_k_cliques$cliques), "cliques found"))
+      # Restrict to cliques above minimum threshold
+      all_k_cliques <- threshold_cliques(all_k_cliques, min_I)
+      print(paste(length(all_k_cliques$cliques), "cliques found above minimum intensity threshold considered"))
+
       for (i in I.range) {
-        results <- cpAlgorithm(W, k = k, method = method, I = as.numeric(as.character(i)))
+        results <- cpAlgorithmRaw(W, k = k, method = method, I = as.numeric(as.character(i)), all_k_cliques = all_k_cliques)
         #if there are at least two communities...
         #ratio threshold can be determined if requested
         if (length(results$list.of.communities.numbers) > 1 & "largest.components.ratio" %in% threshold) {
