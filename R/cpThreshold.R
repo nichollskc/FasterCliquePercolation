@@ -178,10 +178,10 @@ cpThreshold <- function(W, method = c("unweighted","weighted","weighted.CFinder"
 
     for (k in k.range) {
       all_k_cliques <- calculate_all_clique_intensities(Wmat, k)
-      print(paste(length(all_k_cliques$cliques), "cliques found"))
+      #print(paste(length(all_k_cliques$cliques), "cliques found"))
       # Restrict to cliques above minimum threshold
       all_k_cliques <- threshold_cliques(all_k_cliques, min_I)
-      print(paste(length(all_k_cliques$cliques), "cliques found above minimum intensity threshold considered"))
+      #print(paste(length(all_k_cliques$cliques), "cliques found above minimum intensity threshold considered"))
 
       for (i in I.range) {
         results <- cpAlgorithmRaw(W, k = k, method = method, I = as.numeric(as.character(i)), all_k_cliques = all_k_cliques)

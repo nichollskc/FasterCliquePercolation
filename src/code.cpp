@@ -1,27 +1,52 @@
 #include <Rcpp.h>
 using namespace Rcpp;
 
+/*
+ * Calculate clique communities roughly using the method outlined at the end
+ * of Section 3 Farkas et al. The key idea is that to identify all the k-cliques
+ * that neighbour a given clique, we can find all (k-1)-cliques which are contained
+ * within the clique (subcliques) and then any k-clique containing one of these
+ * subcliques will be a neighbour (if it exists in the network).
+ */
 class CliquePercolator {
+  // The maximum node value we will consider i.e. when adding an extra node to
+  // a subclique, we will try node=0,1,2,...,max_node_index
   int max_node_index;
 
   /* Set of unvisited cliques (i.e. they are present in the network but not
    * yet visited in the algorithm) */
   std::set<std::vector<int>> unvisited_cliques;
 
-  // Keeps track of which communities each node in the graph belongs to
-  // Note that since communities are allowed to overlap, each node has a list
-  // of communities it belongs to
+  /*
+   * Keeps track of communities. Each entry in the vector corresponds to
+   * a community, and the entry is the set of nodes that belong to that community.
+   */
   std::vector<std::set<int>> community_membership;
 
+  /*
+   * Main function - returns a list of all the communities
+   * Iteratively picks a new unvisited clique and then explores the community
+   * containing this node (i.e. the connected component in the clique graph, which
+   * has a node for each k-clique and nodes are connected if the k-cliques share
+   * a (k-1)-clique.
+   */
   public: std::vector<std::set<int>> calculate_community_membership() {
+    // Will be the index into the community_membership vector
     int community_id = 0;
 
+    // Pick a clique with which to start exploration
     std::set<std::vector<int>>::iterator next_clique = unvisited_cliques.begin();
 
     while (next_clique != unvisited_cliques.end()) {
+      // Start a new community that will be spawned with this clique
+      // The set of members starts off as an empty set
       std::set<int> empty;
       community_membership.push_back(empty);
+
+      // Explore the community
       explore_community(*next_clique, community_id);
+
+      // Pick the next clique and advance the community index
       community_id++;
       next_clique = unvisited_cliques.begin();
     }
@@ -29,13 +54,23 @@ class CliquePercolator {
     return(community_membership);
   }
 
+  /*
+   * Find all cliques which are connected to this clique (in the clique graph described
+   * above) and mark all nodes contained in these cliques as a member of the
+   * community with index community_id
+   *
+   * Mark all cliques in this community as visited by removing them from unvisited_cliques.
+   */
   void explore_community(std::vector<int> clique, int community_id) {
+    // To avoid recursion, maintain a stack (LIFO) of cliques whose neighbouring
+    // cliques we will add to the community
     std::vector<std::vector<int>> cliques_to_check = {clique};
 
-    // First mark this clique as visited
+    // First mark this seed clique as visited
     unvisited_cliques.erase(unvisited_cliques.find(clique));
 
     while (!cliques_to_check.empty()) {
+      // Remove a clique from the stack
       std::vector<int> current_clique = cliques_to_check.back();
       cliques_to_check.pop_back();
 
@@ -45,14 +80,20 @@ class CliquePercolator {
         community_membership[community_id].insert(node);
       }
 
+      // Find all adjacent cliques
       std::vector<std::vector<int>> adjacent = find_adjacent_unvisited_cliques(current_clique);
       for (int i = 0; i < adjacent.size(); i++) {
-        // Add this clique to list of cliques to explore next
+        // Add this adjacent clique to list of cliques to explore next
         cliques_to_check.push_back(adjacent[i]);
       }
     }
   }
 
+  /*
+   * Find all k-cliques which are adjacent to the clique in the clique graph. Mark
+   * all such cliques as visited by removing them from unvisited_cliques and
+   * return the list of adjacent cliques.
+   */
   std::vector<std::vector<int>> find_adjacent_unvisited_cliques(std::vector<int> clique) {
     std::vector<std::vector<int>> adjacent_cliques;
     std::set<std::vector<int>>::iterator it;
@@ -60,17 +101,19 @@ class CliquePercolator {
     // Consider each (k-1) subclique of this clique
     int k = clique.size();
     for (int i = 0; i < k; i++) {
-      // Create a copy and remove the ith element
+      // Create a copy and remove the ith element to create a (k-1)-clique
+      // which is a subclique of clique
       std::vector<int> subclique = clique;
       subclique.erase(subclique.begin() + i);
 
       // Consider all k-cliques containing this (k-1) clique
-      // All such cliques are neighbours of the original clique
+      // All such k-cliques are neighbours of the original clique
       for (int j = 0; j <= max_node_index; j++) {
         // Create a copy of the subclique and add the potential new node
         std::vector<int> superclique = subclique;
         superclique.push_back(j);
-        // Sort so that it is in the canonical representation
+
+        // Sort clique so that it is in the canonical representation
         sort(superclique.begin(), superclique.end());
 
         it = unvisited_cliques.find(superclique);
@@ -86,6 +129,9 @@ class CliquePercolator {
     return(adjacent_cliques);
   }
 
+  /*
+   * Constructor - initialises necessary variables
+   */
   CliquePercolator(std::vector<std::vector<int>> cliques, int max_node) {
     max_node_index = max_node;
 
@@ -102,6 +148,8 @@ class CliquePercolator {
 
 // [[Rcpp::export]]
 std::vector<std::set<int>> calculate_community_membership(std::vector<std::vector<int>> cliques, int max_node) {
+  // Essentially just a wrapper - creates CliquePercolator object and then
+  // calls its main function to find the communities.
   CliquePercolator cp = CliquePercolator(cliques, max_node);
   std::vector<std::set<int>> memberships = cp.calculate_community_membership();
   return(memberships);
