@@ -157,53 +157,8 @@ cpAlgorithmRaw <- function(W, k, method = c("unweighted","weighted","weighted.CF
     ##   edges <- edges[which(edges_include_weighted == TRUE)]
     ## }
     
-    #if there is more than one clique and at least one edge...
-    #create list of vectors with each vector being a community; this has a number of steps
-    #a weights matrix is created with cliques as nodes and existence of k-adjacency between them as edge
-    #then, components (connected subgraphs) of this graph are extracted from igraph object
-    #components are therefore the communities
-    #each clique is then put into its respective community and the nodes of each community are extracted
     if (length(cliques) > 1) {
-
-      old_way <- function() {
-          W_comm = create_edges_matrix_custom(cliques)
-          print("Constructed adjacency matrix")
-          print(sum(W_comm))
-
-          W_i_comm <- igraph::graph_from_adjacency_matrix(W_comm, mode = "upper")
-          print("Constructed graph from clique adjacency matrix")
-          members <- igraph::components(W_i_comm)$membership
-          print(members)
-          split <- split(cliques, members)
-          print(split)
-          communities <- lapply(split, function(x) sort(unique(unlist(x))))
-          min_elements <- sapply(communities, min)
-          # To allow comparison, remove names and order so that the communities are
-          # in order by minimum element
-          reordered_communities <- unname(communities[order(min_elements)])
-          print("Communities")
-          print(reordered_communities)
-          return(reordered_communities)
-      }
-
-
-      new_way <- function() {
-
-          print("Communities from C")
-          C_communities = calculate_community_membership(cliques, nrow(W))
-          C_min_elements <- sapply(C_communities, min)
-          # To allow comparison, remove names and order so that the communities are
-          # in order by minimum element
-          C_reordered_communities <- C_communities[order(C_min_elements)]
-          print(C_reordered_communities)
-          return(C_reordered_communities)
-      }
-
-      communities <- new_way()
-#      library(microbenchmark)
-#      print(microbenchmark("igraph" = old_way,
-#                     "all_c" = new_way,
-#                     times=5))
+      communities = calculate_community_membership(cliques, nrow(W))
     } else {
       #communities list is empty
       communities <- list() 
