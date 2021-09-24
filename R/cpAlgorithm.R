@@ -139,31 +139,7 @@ cpAlgorithmRaw <- function(W, k, method = c("unweighted","weighted","weighted.CF
     #loop to compare all cliques with each other
     #if cliques share k-1 nodes, a vector is created stating their indices
                                         #if there are not at least two cliques, there can be no edge; thus, the edge list is empty
-    if (length(cliques) > 1) {
-
-      ## library(Rcpp)
-      ## sourceCpp("~/RP/FasterCliquePercolation/src/code.cpp")
-      ## r1=create_edges_matrix_intersect(cliques)
-      ## r2=create_edges_matrix_setdiff(cliques)
-      ## r3=create_edges_matrix_custom(cliques)
-      ## identical(r1,r2)
-      ## identical(r1,r3)
-      ## library(microbenchmark)
-      ## microbenchmark(#r1=create_edges_matrix_intersect(cliques),
-      ##                r2=create_edges_matrix_setdiff(cliques),
-      ##                r3=create_edges_matrix_custom(cliques),  ## custom wins! by about 4x :)
-      ##                times=10) # marginally faster
-      ## system.time(create_edges_matrix_intersect(cliques))
-      ## system.time(create_edges_matrix_setdiff(cliques))
-
-      W_comm = create_edges_matrix_custom(cliques)
-    } else {
-      ## Either only one clique or no cliques
-      ## Make an empty 1x1 adjacency matrix
-      W_comm <- matrix(0,1,1)
-    }
-
-                                        #CFinder applies the Intensity threshold twice, once for the cliques and once for the overlap of cliques
+    #CFinder applies the Intensity threshold twice, once for the cliques and once for the overlap of cliques
     #this is not stated in the paper, but to increase comparability, this is also implemented here for method = weighted.CFinder
     #each k-1 set of nodes coded by an edge is taken and this subnetwork is again tested against I
     #each subnetwork coded by an edge is excluded, when it does not exceed I
@@ -187,20 +163,49 @@ cpAlgorithmRaw <- function(W, k, method = c("unweighted","weighted","weighted.CF
     #then, components (connected subgraphs) of this graph are extracted from igraph object
     #components are therefore the communities
     #each clique is then put into its respective community and the nodes of each community are extracted
-    if (length(cliques) > 1 & sum(W_comm) > 0) {
-      W_i_comm <- igraph::graph_from_adjacency_matrix(W_comm, mode = "upper")
-      members <- igraph::components(W_i_comm)$membership
-      split <- split(cliques, members)
-      communities <- lapply(split, function(x) sort(unique(unlist(x))))
-    }
-    #if there is at least one clique but no edge...
-    #communities are the existing cliques
-    if (length(cliques) > 0 & sum(W_comm) == 0) {
-      communities <- cliques
-    }
-    #if there are no cliques (and therefore also no edges)...
-    #communities list is empty
-    if (length(cliques) == 0) {
+    if (length(cliques) > 1) {
+
+      old_way <- function() {
+          W_comm = create_edges_matrix_custom(cliques)
+          print("Constructed adjacency matrix")
+          print(sum(W_comm))
+
+          W_i_comm <- igraph::graph_from_adjacency_matrix(W_comm, mode = "upper")
+          print("Constructed graph from clique adjacency matrix")
+          members <- igraph::components(W_i_comm)$membership
+          print(members)
+          split <- split(cliques, members)
+          print(split)
+          communities <- lapply(split, function(x) sort(unique(unlist(x))))
+          min_elements <- sapply(communities, min)
+          # To allow comparison, remove names and order so that the communities are
+          # in order by minimum element
+          reordered_communities <- unname(communities[order(min_elements)])
+          print("Communities")
+          print(reordered_communities)
+          return(reordered_communities)
+      }
+
+
+      new_way <- function() {
+
+          print("Communities from C")
+          C_communities = calculate_community_membership(cliques, nrow(W))
+          C_min_elements <- sapply(C_communities, min)
+          # To allow comparison, remove names and order so that the communities are
+          # in order by minimum element
+          C_reordered_communities <- C_communities[order(C_min_elements)]
+          print(C_reordered_communities)
+          return(C_reordered_communities)
+      }
+
+      communities <- new_way()
+#      library(microbenchmark)
+#      print(microbenchmark("igraph" = old_way,
+#                     "all_c" = new_way,
+#                     times=5))
+    } else {
+      #communities list is empty
       communities <- list() 
     }
     

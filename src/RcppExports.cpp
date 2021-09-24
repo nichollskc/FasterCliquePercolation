@@ -5,6 +5,18 @@
 
 using namespace Rcpp;
 
+// calculate_community_membership
+std::vector<std::set<int>> calculate_community_membership(std::vector<std::vector<int>> cliques, int max_node);
+RcppExport SEXP _FasterCliquePercolation_calculate_community_membership(SEXP cliquesSEXP, SEXP max_nodeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::vector<std::vector<int>> >::type cliques(cliquesSEXP);
+    Rcpp::traits::input_parameter< int >::type max_node(max_nodeSEXP);
+    rcpp_result_gen = Rcpp::wrap(calculate_community_membership(cliques, max_node));
+    return rcpp_result_gen;
+END_RCPP
+}
 // create_edges_matrix_custom
 IntegerMatrix create_edges_matrix_custom(List cliques);
 RcppExport SEXP _FasterCliquePercolation_create_edges_matrix_custom(SEXP cliquesSEXP) {
@@ -50,6 +62,7 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_FasterCliquePercolation_calculate_community_membership", (DL_FUNC) &_FasterCliquePercolation_calculate_community_membership, 2},
     {"_FasterCliquePercolation_create_edges_matrix_custom", (DL_FUNC) &_FasterCliquePercolation_create_edges_matrix_custom, 1},
     {"_FasterCliquePercolation_create_edges_matrix_intersect", (DL_FUNC) &_FasterCliquePercolation_create_edges_matrix_intersect, 1},
     {"_FasterCliquePercolation_create_edges_matrix_setdiff", (DL_FUNC) &_FasterCliquePercolation_create_edges_matrix_setdiff, 1},
