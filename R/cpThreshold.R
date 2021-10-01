@@ -129,7 +129,13 @@
 
 cpThreshold <- function(W, method = c("unweighted","weighted","weighted.CFinder"), k.range, I.range,
                         threshold = c("largest.components.ratio","chi","entropy")){
-  
+
+  if (methods::is(W, "qgraph") == TRUE) {
+    Wmat <- qgraph::getWmat(W)
+  } else {
+	Wmat <- W
+  }
+
   #function for chi formula
   formula_chi <- function(size_comm){
     size_comm_sort <- sort(size_comm)
@@ -165,7 +171,6 @@ cpThreshold <- function(W, method = c("unweighted","weighted","weighted.CFinder"
     isolated <- c()
     count <- 1
 
-    Wmat <- qgraph::getWmat(W)
 
     min_I <- min(I.range)
     min_k <- min(k.range)
@@ -184,7 +189,7 @@ cpThreshold <- function(W, method = c("unweighted","weighted","weighted.CFinder"
       #print(paste(length(all_k_cliques$cliques), "cliques found above minimum intensity threshold considered"))
 
       for (i in I.range) {
-        results <- cpAlgorithmRaw(W, k = k, method = method, I = as.numeric(as.character(i)), all_k_cliques = all_k_cliques)
+        results <- cpAlgorithmRaw(Wmat, k = k, method = method, I = as.numeric(as.character(i)), all_k_cliques = all_k_cliques)
         #if there are at least two communities...
         #ratio threshold can be determined if requested
         if (length(results$list.of.communities.numbers) > 1 & "largest.components.ratio" %in% threshold) {
@@ -273,7 +278,7 @@ cpThreshold <- function(W, method = c("unweighted","weighted","weighted.CFinder"
                                           style = 3) #progress bar definition
     progress_bar_counter <- 0 #counter for progress bar
     for (k in k.range) {
-      results <- cpAlgorithm(W, k = k, method = method)
+      results <- cpAlgorithmRaw(Wmat, k = k, method = method)
       #if there are at least two communities...
       #ratio threshold can be determined if requested
       if (length(results$list.of.communities.numbers) > 1 & "largest.components.ratio" %in% threshold) {
