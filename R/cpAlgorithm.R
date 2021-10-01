@@ -271,7 +271,7 @@ threshold_cliques <- function(cliques_result, I) {
 }
 
 ##function to find all cliques and calculate their intensities
-calculate_all_clique_intensities <- function(W_weighted, k) {
+calculate_all_clique_intensities_raw <- function(W_weighted, k) {
   #take absolute Value of weights matrix
   #deals with negative edges such that they are simply considered like positive edges
   W_weighted <- abs(W_weighted)
@@ -304,3 +304,7 @@ calculate_all_clique_intensities <- function(W_weighted, k) {
               "cliques" = cliques_weighted))
 
 }
+
+# Use memoization to cache the results of this function call. Thus if the function is called
+# twice in a session with the same parameters, the second call will be almost instant.
+calculate_all_clique_intensities <- R.cache::addMemoization(calculate_all_clique_intensities_raw)
