@@ -165,6 +165,7 @@ cpThreshold <- function(W, method = c("unweighted","weighted","weighted.CFinder"
     ratio <- c()
     chi <- c()
     entropy <- c()
+	modularity <- c()
     I_cp <- c()
     k_cp <- c()
     community <- c()
@@ -251,6 +252,9 @@ cpThreshold <- function(W, method = c("unweighted","weighted","weighted.CFinder"
           size_combined <- c(size_dist_ent,isolated_ent)
           entropy[count] <- formula_entropy(size_combined)
         }
+        if ("modularity" %in% threshold) {
+			modularity[count] <- weighted_modularity(results$list.of.communities.numbers, Wmat)
+        }
         I_cp[count] <- i
         k_cp[count] <- k
         community[count] <- length(results$list.of.communities.numbers)
@@ -270,6 +274,7 @@ cpThreshold <- function(W, method = c("unweighted","weighted","weighted.CFinder"
     ratio <- c()
     chi <- c()
     entropy <- c()
+	modularity <- c()
     k_cp <- c()
     community <- c()
     isolated <- c()
@@ -339,10 +344,13 @@ cpThreshold <- function(W, method = c("unweighted","weighted","weighted.CFinder"
         } else {isolated_ent <- c()}
         size_combined <- c(size_dist_ent,isolated_ent)
         entropy[count] <- formula_entropy(size_combined)
-      }
-      k_cp[count] <- k
-      community[count] <- length(results$list.of.communities.numbers)
-      isolated[count] <- length(results$isolated.nodes.numbers)
+        }
+        if ("modularity" %in% threshold) {
+			modularity[count] <- weighted_modularity(results$list.of.communities.numbers, Wmat)
+        }
+        k_cp[count] <- k
+        community[count] <- length(results$list.of.communities.numbers)
+        isolated[count] <- length(results$isolated.nodes.numbers)
       count <- count + 1
       
       #progress bar update
@@ -384,7 +392,25 @@ cpThreshold <- function(W, method = c("unweighted","weighted","weighted.CFinder"
     data <- data.frame(cbind(data,entropy))
     names(data) <- names_data_ent
   }
+
+  if ("modularity" %in% threshold) {
+    names_data_ent <- c(names(data),"Modularity.Threshold")
+    data <- data.frame(cbind(data,modularity))
+    names(data) <- names_data_ent
+  }
   
   return(data)
   
+}
+
+
+weighted_modularity=function(comms, A) {
+  m=sum(A)
+  edgeweights=rowSums(A)
+  deg=outer(edgeweights,edgeweights,"*")
+  Cij=matrix(0,nrow(A),ncol(A),dimnames=dimnames(A))
+  for(i in seq_along(comms))
+    Cij[comms[[i]],comms[[i]]]=1
+  diag(Cij)=0
+  sum((A-deg/(2*m))*Cij)/(2*m)
 }
