@@ -129,7 +129,13 @@
 
 cpThreshold <- function(W, method = c("unweighted","weighted","weighted.CFinder"), k.range, I.range,
                         threshold = c("largest.components.ratio","chi","entropy")){
-  
+
+  if (methods::is(W, "qgraph") == TRUE) {
+    Wmat <- qgraph::getWmat(W)
+  } else {
+	Wmat <- W
+  }
+
   #function for chi formula
   formula_chi <- function(size_comm){
     size_comm_sort <- sort(size_comm)
@@ -159,13 +165,13 @@ cpThreshold <- function(W, method = c("unweighted","weighted","weighted.CFinder"
     ratio <- c()
     chi <- c()
     entropy <- c()
+	modularity <- c()
     I_cp <- c()
     k_cp <- c()
     community <- c()
     isolated <- c()
     count <- 1
 
-    Wmat <- qgraph::getWmat(W)
 
     min_I <- min(I.range)
     min_k <- min(k.range)
@@ -184,7 +190,7 @@ cpThreshold <- function(W, method = c("unweighted","weighted","weighted.CFinder"
       #print(paste(length(all_k_cliques$cliques), "cliques found above minimum intensity threshold considered"))
 
       for (i in I.range) {
-        results <- cpAlgorithmRaw(W, k = k, method = method, I = as.numeric(as.character(i)), all_k_cliques = all_k_cliques)
+        results <- cpAlgorithmRaw(Wmat, k = k, method = method, I = as.numeric(as.character(i)), all_k_cliques = all_k_cliques)
         #if there are at least two communities...
         #ratio threshold can be determined if requested
         if (length(results$list.of.communities.numbers) > 1 & "largest.components.ratio" %in% threshold) {
@@ -246,6 +252,9 @@ cpThreshold <- function(W, method = c("unweighted","weighted","weighted.CFinder"
           size_combined <- c(size_dist_ent,isolated_ent)
           entropy[count] <- formula_entropy(size_combined)
         }
+        if ("modularity" %in% threshold) {
+			modularity[count] <- weighted_modularity(results$list.of.communities.numbers, Wmat)
+        }
         I_cp[count] <- i
         k_cp[count] <- k
         community[count] <- length(results$list.of.communities.numbers)
@@ -265,6 +274,7 @@ cpThreshold <- function(W, method = c("unweighted","weighted","weighted.CFinder"
     ratio <- c()
     chi <- c()
     entropy <- c()
+	modularity <- c()
     k_cp <- c()
     community <- c()
     isolated <- c()
@@ -273,7 +283,7 @@ cpThreshold <- function(W, method = c("unweighted","weighted","weighted.CFinder"
                                           style = 3) #progress bar definition
     progress_bar_counter <- 0 #counter for progress bar
     for (k in k.range) {
-      results <- cpAlgorithm(W, k = k, method = method)
+      results <- cpAlgorithmRaw(Wmat, k = k, method = method)
       #if there are at least two communities...
       #ratio threshold can be determined if requested
       if (length(results$list.of.communities.numbers) > 1 & "largest.components.ratio" %in% threshold) {
@@ -334,10 +344,13 @@ cpThreshold <- function(W, method = c("unweighted","weighted","weighted.CFinder"
         } else {isolated_ent <- c()}
         size_combined <- c(size_dist_ent,isolated_ent)
         entropy[count] <- formula_entropy(size_combined)
-      }
-      k_cp[count] <- k
-      community[count] <- length(results$list.of.communities.numbers)
-      isolated[count] <- length(results$isolated.nodes.numbers)
+        }
+        if ("modularity" %in% threshold) {
+			modularity[count] <- weighted_modularity(results$list.of.communities.numbers, Wmat)
+        }
+        k_cp[count] <- k
+        community[count] <- length(results$list.of.communities.numbers)
+        isolated[count] <- length(results$isolated.nodes.numbers)
       count <- count + 1
       
       #progress bar update
@@ -379,7 +392,25 @@ cpThreshold <- function(W, method = c("unweighted","weighted","weighted.CFinder"
     data <- data.frame(cbind(data,entropy))
     names(data) <- names_data_ent
   }
+
+  if ("modularity" %in% threshold) {
+    names_data_ent <- c(names(data),"Modularity.Threshold")
+    data <- data.frame(cbind(data,modularity))
+    names(data) <- names_data_ent
+  }
   
   return(data)
   
+}
+
+
+weighted_modularity=function(comms, A) {
+  m=sum(A)
+  edgeweights=rowSums(A)
+  deg=outer(edgeweights,edgeweights,"*")
+  Cij=matrix(0,nrow(A),ncol(A),dimnames=dimnames(A))
+  for(i in seq_along(comms))
+    Cij[comms[[i]],comms[[i]]]=1
+  diag(Cij)=0
+  sum((A-deg/(2*m))*Cij)/(2*m)
 }

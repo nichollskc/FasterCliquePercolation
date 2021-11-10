@@ -100,15 +100,19 @@
 #' @export cpAlgorithm
 
 cpAlgorithm <- function(W, k, method = c("unweighted","weighted","weighted.CFinder"), I){
-  return(cpAlgorithmRaw(W, k, method, I, all_k_cliques = NULL))
-}
-
-cpAlgorithmRaw <- function(W, k, method = c("unweighted","weighted","weighted.CFinder"), I, all_k_cliques = NULL) {
-  
   ###error message if W is not a qgraph object
   if (methods::is(W, "qgraph") == FALSE) {
     stop("W (network object) must be a qgraph object.")
   }
+  
+  #extract weights matrix
+  Wmat <- qgraph::getWmat(W)
+  labels <- as.vector(W$graphAttributes$Nodes$labels)
+
+  return(cpAlgorithmRaw(Wmat, k, method, I, labels, all_k_cliques = NULL))
+}
+
+cpAlgorithmRaw <- function(Wmat, k, method = c("unweighted","weighted","weighted.CFinder"), I, labels = NULL, all_k_cliques = NULL) {
   ###error message if k is not larger than 2
   if (k < 3) {
     stop("k must be larger than 2, because this is the first reasonable clique size.")
@@ -134,7 +138,7 @@ cpAlgorithmRaw <- function(W, k, method = c("unweighted","weighted","weighted.CF
   
   
   #function to derive communities, shared nodes, and isolated nodes
-  results_cp <- function(W, cliques, labels){
+  results_cp <- function(Wmat, cliques, labels){
     
     #loop to compare all cliques with each other
     #if cliques share k-1 nodes, a vector is created stating their indices
@@ -158,7 +162,7 @@ cpAlgorithmRaw <- function(W, k, method = c("unweighted","weighted","weighted.CF
     ## }
     
     if (length(cliques) > 1) {
-      communities = calculate_community_membership(cliques, nrow(W))
+      communities = calculate_community_membership(cliques, nrow(Wmat))
     } else {
       #communities list is empty
       communities <- list() 
@@ -166,8 +170,8 @@ cpAlgorithmRaw <- function(W, k, method = c("unweighted","weighted","weighted.CF
     
     #create vector of nodes that do not belong to a community
     #if there are no isolated nodes, create empty variable
-    isolated <- subset(1:nrow(W),
-                       subset = !(1:nrow(W)%in%unique(unlist(communities))))
+    isolated <- subset(1:nrow(Wmat),
+                       subset = !(1:nrow(Wmat)%in%unique(unlist(communities))))
     if (length(isolated) == 0) {isolated <-  c()}
     
     #if there is more than one community...
@@ -223,10 +227,6 @@ cpAlgorithmRaw <- function(W, k, method = c("unweighted","weighted","weighted.CF
                 isolated,isolated_labels))
   }
   
-  #extract weights matrix
-  Wmat <- qgraph::getWmat(W)
-  labels <- as.vector(W$graphAttributes$Nodes$labels)
-  
   #run corresponding functions for respective method
   
   ## if (method == "unweighted") {
@@ -271,7 +271,7 @@ threshold_cliques <- function(cliques_result, I) {
 }
 
 ##function to find all cliques and calculate their intensities
-calculate_all_clique_intensities <- function(W_weighted, k) {
+calculate_all_clique_intensities_raw <- function(W_weighted, k) {
   #take absolute Value of weights matrix
   #deals with negative edges such that they are simply considered like positive edges
   W_weighted <- abs(W_weighted)
@@ -304,3 +304,7 @@ calculate_all_clique_intensities <- function(W_weighted, k) {
               "cliques" = cliques_weighted))
 
 }
+
+# Use memoization to cache the results of this function call. Thus if the function is called
+# twice in a session with the same parameters, the second call will be almost instant.
+calculate_all_clique_intensities <- R.cache::addMemoization(calculate_all_clique_intensities_raw)
