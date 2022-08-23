@@ -5,6 +5,11 @@
 
 using namespace Rcpp;
 
+#ifdef RCPP_USE_GLOBAL_ROSTREAM
+Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
+Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
+#endif
+
 // calculate_community_membership
 std::vector<std::set<int>> calculate_community_membership(std::vector<std::vector<int>> cliques, int max_node);
 RcppExport SEXP _FasterCliquePercolation_calculate_community_membership(SEXP cliquesSEXP, SEXP max_nodeSEXP) {
