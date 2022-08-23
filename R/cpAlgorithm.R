@@ -161,7 +161,7 @@ cpAlgorithmRaw <- function(Wmat, k, method = c("unweighted","weighted","weighted
     ##   edges <- edges[which(edges_include_weighted == TRUE)]
     ## }
     
-    if (length(cliques) > 1) {
+    if (length(cliques) > 0) {
       communities = calculate_community_membership(cliques, nrow(Wmat))
     } else {
       #communities list is empty
