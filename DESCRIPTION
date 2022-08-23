@@ -28,7 +28,10 @@ Imports:
     utils,
     Rcpp (>= 1.0.5)
 RoxygenNote: 7.1.1
-Suggests: knitr, rmarkdown
+Suggests: 
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown
 VignetteBuilder: knitr
 NeedsCompilation: no
 Packaged: 2019-10-22 12:09:44 UTC; Jens Lange
@@ -37,3 +40,4 @@ Author: Jens Lange [aut, cre],
 Repository: CRAN
 Date/Publication: 2019-10-28 13:30:08 UTC
 LinkingTo: Rcpp
+Config/testthat/edition: 3
